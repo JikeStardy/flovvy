@@ -1,0 +1,56 @@
+.stmtlist {
+    display: flex;
+    flex: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    align-content: flex-start;
+    padding: 1vh;
+}
+
+.block {
+    border-radius: 5px;
+    border: solid 1px #00c5be;
+    /* height: 50px;
+    width: 50px; */
+    cursor: grab;
+    background: black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    max-width: 80px;
+    padding: 5px;
+    margin: 5px;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    flex-grow: 1;
+    /* flex: 1; */
+}
+
+.dragger {
+    z-index: 999;
+    pointer-events: none;
+    user-select: none;
+    cursor: grabbing;
+    height: 70px;
+    width: 150px;
+}
+
+.dragInner {
+    pointer-events: none;
+    margin-left: 80px;
+    margin-top: 60px;
+    border-radius: 5px;
+    background: black;
+    border: solid 1px #00c5be;
+    /* height: 40px;
+    width: 40px; */
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
