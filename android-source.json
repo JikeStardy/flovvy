@@ -1,0 +1,23 @@
+{
+  "baseline_sha": "dbc035bf3b297d974270e9aa87096e73b24bceb3",
+  "files": {
+    ".github/workflows/android-apk.yml": "fbed0f184c7fd006a7b7c8795237b37779a5c53b94a55ab8fecb1aa914f0927d",
+    "clients/android/README.md": "a4159332fa0a1dac2284447971dd0f11dcb10437cf091e332e2ee5f584d3fc30",
+    "clients/android/src/main/AndroidManifest.xml": "e235071d7648912708677b9b60bc6ea8e5545ea111d4e386530bb560542cc564",
+    "clients/android/src/main/java/com/jikestardy/flovvy/CredentialStore.java": "9016e7733cdd75b1bc70a806a05d527148f00e1ea4c6adad3cbbb0f2e66b3d21",
+    "clients/android/src/main/java/com/jikestardy/flovvy/HostAccess.java": "eaa366a4110d146c011548751808f97415460583aa48fa96008b5e1b78dafbcb",
+    "clients/android/src/main/java/com/jikestardy/flovvy/HostClient.java": "d7c385d92e6dacdaeede1fe3fce90cdcbb34ba6c92325715a134d4f078f9dcb4",
+    "clients/android/src/main/java/com/jikestardy/flovvy/MainActivity.java": "bc90299531cf0ad99bf119e37a69ca64d15557e5b663887e1a2865b42fb607db",
+    "clients/android/src/main/java/com/jikestardy/flovvy/SessionState.java": "912fda8778707d0769df5f962f69a6f062bbfc793d27c01710520c08d94ed1e2",
+    "clients/android/src/main/java/com/jikestardy/flovvy/TextDraft.java": "1552354f133a750ffcd5a306f02d5b04ae9e8a4ef4c5ed805b4d0b3a547f58d0",
+    "clients/android/src/main/res/values/styles.xml": "8edc5019a54d6a3e5e25eddeca83e2c4b064e800467cdbb5b70682b7d1c8f61e",
+    "clients/android/src/main/res/xml/data_extraction_rules.xml": "7a4e6defdcb7e21a8cdb4bb4cbdbbef15bcd4c6bae923372fbfa07f0642ac29a",
+    "clients/android/tests/SessionStateTest.java": "03c70d9fdd43c107f025d32f3231b812bffa51a698ff4561659013c6e7494473",
+    "clients/android/tests/test_build_tools.py": "b5c7e031525b83ca303f0846c0fb8fd2269ebeacd01e43e5e08b9aa208b18286",
+    "clients/android/tools/build_apk.py": "4a85661da0d25b6d4e790d57a344624f1ab27ae2e441c79315f1d0859b42ebdf",
+    "clients/android/tools/verify_projection.py": "f9b5badb23e527226d9e931ec35e6f7278d0ad258c8efa7a7f981a37bd9a9623"
+  },
+  "implementation_sha": "43ed1ea6bace6cc30489e5402f854f0b12444ec5",
+  "requirement": "REQ-20261022-4919F1",
+  "schema": 1
+}

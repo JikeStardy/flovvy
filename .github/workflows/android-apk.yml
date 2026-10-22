@@ -1,0 +1,71 @@
+name: Android APK
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'clients/android/**'
+      - '.github/workflows/android-apk.yml'
+      - 'android-source.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-dev
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify the public Android source projection
+        run: python3 -B clients/android/tools/verify_projection.py .
+      - name: Run Android build boundary tests
+        run: python3 -B -m unittest discover -s clients/android/tests -p 'test_*.py' -v
+      - name: Build and verify a signed APK with preinstalled tools
+        env:
+          ANDROID_SIGNING_P12_BASE64: ${{ secrets.ANDROID_SIGNING_P12_BASE64 }}
+          ANDROID_SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+          ANDROID_SIGNING_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
+        run: >-
+          python3 -B clients/android/tools/build_apk.py
+          --source-root "$GITHUB_WORKSPACE"
+          --output "$RUNNER_TEMP/flovvy-delivery"
+          --version-code "$GITHUB_RUN_NUMBER"
+      - name: Upload only verified delivery files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: flovvy-android-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/flovvy-delivery/flovvy.apk
+            ${{ runner.temp }}/flovvy-delivery/flovvy.apk.sha256
+            ${{ runner.temp }}/flovvy-delivery/build-manifest.json
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: false
+          compression-level: 0
+      - name: Remove owned temporary signing work
+        if: always()
+        run: |
+          python3 -B - <<'PY'
+          import os
+          from pathlib import Path
+          import shutil
+          temporary = Path(os.environ['RUNNER_TEMP'])
+          for path in temporary.glob('flovvy-build-*'):
+              if path.is_symlink():
+                  path.unlink()
+              elif path.is_dir():
+                  shutil.rmtree(path)
+          PY
