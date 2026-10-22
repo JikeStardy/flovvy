@@ -86,6 +86,9 @@ elif tool == 'aapt2':
                 archive.writestr('AndroidManifest.xml', b'fixture')
                 archive.writestr('resources.arsc', b'fixture', compress_type=zipfile.ZIP_STORED)
 elif tool == 'd8':
+    if mode == 'compile_failure':
+        print('COMPILE_PRIVATE_CANARY')
+        sys.exit(7)
     (argument('--output') / 'classes.dex').write_bytes(b'dex\\n035\\0fixture')
 elif tool == 'zipalign':
     if '-c' not in args: shutil.copyfile(args[-2], args[-1])
@@ -418,6 +421,80 @@ class BuilderTests(unittest.TestCase):
         )
         self.assertNotIn(env["ANDROID_SIGNING_PASSWORD"], json.dumps(result))
         self.assertEqual(result["projection_sha"], "c" * 40)
+        self.assertEqual(list(self.root.glob("flovvy-build-*")), [])
+
+    def test_compile_only_cli_needs_no_signing_and_publishes_no_delivery(self) -> None:
+        source = self.root / "source"
+        source.mkdir()
+        projection(source)
+        env = fake_sdk(self.root, "ok")
+        for name in tuple(env):
+            if name.startswith("ANDROID_SIGNING_"):
+                del env[name]
+        output = self.root / "delivery"
+        output.mkdir()
+        for name in self.module.DELIVERABLES:
+            (output / name).write_text("stale")
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                str(TOOLS / "build_apk.py"),
+                "--compile-only",
+                "--source-root",
+                str(source),
+                "--output",
+                str(output),
+                "--version-code",
+                "7",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for tool in ("javac", "java", "aapt2", "d8", "zipalign"):
+            self.assertIn("Android build stage: " + tool, result.stdout)
+        self.assertNotIn("Android build stage: apksigner", result.stdout)
+        self.assertIn("Compilation verified; no APK delivery", result.stdout)
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(list(output.iterdir()), [])
+        self.assertEqual(list(self.root.glob("flovvy-build-*")), [])
+
+    def test_compile_only_failure_is_safe_and_cannot_deliver(self) -> None:
+        source = self.root / "source"
+        source.mkdir()
+        projection(source)
+        env = fake_sdk(self.root, "compile_failure")
+        for name in tuple(env):
+            if name.startswith("ANDROID_SIGNING_"):
+                del env[name]
+        output = self.root / "delivery"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                str(TOOLS / "build_apk.py"),
+                "--compile-only",
+                "--source-root",
+                str(source),
+                "--output",
+                str(output),
+                "--version-code",
+                "7",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("TOOL_FAILED", result.stdout)
+        self.assertNotIn("COMPILE_PRIVATE_CANARY", result.stdout + result.stderr)
+        self.assertNotIn("Compilation verified", result.stdout)
+        self.assertNotIn("Android build stage: apksigner", result.stdout)
+        self.assertEqual(list(output.iterdir()), [])
         self.assertEqual(list(self.root.glob("flovvy-build-*")), [])
 
     def test_failed_signer_cleans_key_and_all_delivery_outputs(self) -> None:

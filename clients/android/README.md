@@ -52,6 +52,11 @@ runner 必须已有 JDK17、API36 revision2、Build Tools36.0.0、Python3.12+。
 执行 Python 测试和纯 Java harness，再实际 aapt2→javac→d8→zipalign→apksigner，并核验
 最终包、SDK、仅 INTERNET 权限、签名证书与对齐。没有 Gradle、AndroidX 或第三方运行时。
 
+独立的 `--compile-only` 步骤不读取签名配置，使用同一条实际 Java harness、资源、Android
+编译、DEX 和对齐检查路径。它不调用签名器，不创建密钥，也不保留或上传 APK、hash 或
+交付 manifest。即使这个步骤通过，后续签名或验包缺配置/失败仍会使整个构建失败，不
+上传任何交付文件；纯编译通过不能代替可安装 APK。
+
 集成负责人配置两项 Secrets：`ANDROID_SIGNING_P12_BASE64`、`ANDROID_SIGNING_PASSWORD`；
 私钥 alias 为 `flovvy-android`，保持同一 RSA3072 签名。另设非秘密变量
 `ANDROID_SIGNING_CERT_SHA256` 为预期公钥证书 SHA256。缺配置或证书不符失败，不生成新

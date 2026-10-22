@@ -373,14 +373,14 @@ def _verify_apk(
         raise ValueError("APK_VERIFICATION")
 
 
-def build(root: Path, output: Path, code: int) -> dict[str, object]:
+def build(root: Path, output: Path, code: int, *, compile_only: bool = False) -> dict[str, object]:
     if type(code) is not int or version_code(str(code)) != code:
         raise ValueError("VERSION_CODE")
     output = _output_path(output, os.environ)
     _clear_outputs(output)
     try:
         provenance = verify(root)
-        key, password, certificate = signing_inputs(os.environ)
+        key, password, certificate = (b"", "", "") if compile_only else signing_inputs(os.environ)
         tools = toolchain(os.environ)
         revision = os.environ.get("GITHUB_SHA", "")
         if re.fullmatch(r"[a-f0-9]{40}", revision) is None:
@@ -516,6 +516,18 @@ def build(root: Path, output: Path, code: int) -> dict[str, object]:
                 "zipalign",
                 ["-P", "16", "-f", "4", str(work / "unsigned.apk"), str(work / "aligned.apk")],
             )
+            if compile_only:
+                invoke("zipalign", ["-c", "-P", "16", "4", str(work / "aligned.apk")])
+                return {
+                    "compilation_only": True,
+                    "verification": {
+                        "java_harness": True,
+                        "android_compilation": True,
+                        "dex": True,
+                        "alignment": True,
+                        "signature": False,
+                    },
+                }
             signing = work / "signing.p12"
             descriptor = os.open(signing, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(descriptor, "wb") as stream:
@@ -631,12 +643,20 @@ def main() -> int:
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--version-code", type=version_code, required=True)
+    parser.add_argument(
+        "--compile-only", action="store_true", help="Verify compilation without signing or delivery"
+    )
     args = parser.parse_args()
     if sys.version_info < (3, 12):  # noqa: UP036 - standalone CI script must check the actual interpreter.
         print("PYTHON_VERSION: requires Python 3.12+")
         return 1
     try:
-        build(args.source_root.resolve(), args.output, args.version_code)
+        build(
+            args.source_root.resolve(),
+            args.output,
+            args.version_code,
+            compile_only=args.compile_only,
+        )
     except ValueError as error:
         category = str(error)
         if re.fullmatch(r"[A-Z_]{1,80}", category) is None:
@@ -646,7 +666,11 @@ def main() -> int:
     except (OSError, zipfile.BadZipFile):
         print("ANDROID_BUILD_FAILED: BUILD_IO; no delivery")
         return 1
-    print("Signed Android APK and sanitized build manifest verified")
+    print(
+        "Compilation verified; no APK delivery"
+        if args.compile_only
+        else "Signed Android APK and sanitized build manifest verified"
+    )
     return 0
 
 

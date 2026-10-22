@@ -33,6 +33,13 @@ jobs:
         run: python3 -B clients/android/tools/verify_projection.py .
       - name: Run Android build boundary tests
         run: python3 -B -m unittest discover -s clients/android/tests -p 'test_*.py' -v
+      - name: Verify native compilation without signing credentials
+        run: >-
+          python3 -B clients/android/tools/build_apk.py
+          --compile-only
+          --source-root "$GITHUB_WORKSPACE"
+          --output "$RUNNER_TEMP/flovvy-compilation-check"
+          --version-code "$GITHUB_RUN_NUMBER"
       - name: Build and verify a signed APK with preinstalled tools
         env:
           ANDROID_SIGNING_P12_BASE64: ${{ secrets.ANDROID_SIGNING_P12_BASE64 }}
