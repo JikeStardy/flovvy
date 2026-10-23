@@ -476,6 +476,76 @@ class BuilderTests(unittest.TestCase):
             self.module.toolchain(env)
         self.assertFalse((self.root / "sdk-commands.jsonl").exists())
 
+    def test_all_jdk_harnesses_execute_before_native_compiler(self) -> None:
+        """Tool-fixture orchestration only; actual Java requires the real runner."""
+        source = self.root / "source"
+        source.mkdir()
+        manifest = projection(source)
+        indexed = manifest["files"]
+        assert isinstance(indexed, dict)
+        for name in (
+            "src/main/java/com/jikestardy/flovvy/AndroidPcmOutput.java",
+            "tests/AndroidPcmOutputTest.java",
+            "tests/platform/android/media/AudioAttributes.java",
+            "tests/platform/android/media/AudioFormat.java",
+            "tests/platform/android/media/AudioTrack.java",
+        ):
+            relative = "clients/android/" + name
+            target = source / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            data = b"// Java input enumeration fixture; not compiled by this fake SDK.\n"
+            target.write_bytes(data)
+            indexed[relative] = hashlib.sha256(data).hexdigest()
+        (source / "android-source.json").write_text(json.dumps(manifest))
+        env = fake_sdk(self.root, "requires_lambda_stub")
+        for name in tuple(env):
+            if name.startswith("ANDROID_SIGNING_"):
+                del env[name]
+        with patch.dict(os.environ, env, clear=True):
+            self.module.build(source, self.root / "delivery", 7, compile_only=True)
+        calls = [
+            json.loads(line) for line in (self.root / "sdk-commands.jsonl").read_text().splitlines()
+        ]
+        execution = [
+            (index, call["args"][-1])
+            for index, call in enumerate(calls)
+            if call["tool"] == "java" and "-cp" in call["args"]
+        ]
+        self.assertEqual(
+            [name for _, name in execution],
+            [
+                "com.jikestardy.flovvy.SessionStateTest",
+                "com.jikestardy.flovvy.PcmOutputTest",
+                "com.jikestardy.flovvy.AndroidPcmOutputTest",
+            ],
+        )
+        first_android = next(index for index, call in enumerate(calls) if call["tool"] == "aapt2")
+        self.assertTrue(all(index < first_android for index, _ in execution))
+        compilers = [
+            call["args"] for call in calls if call["tool"] == "javac" and "-d" in call["args"]
+        ]
+        self.assertEqual(len(compilers), 2)
+        harness_sources = [value for value in compilers[0] if value.endswith(".java")]
+        fixtures = [value for value in harness_sources if "/tests/platform/" in value]
+        self.assertEqual(
+            {Path(value).name for value in fixtures},
+            {"AudioAttributes.java", "AudioFormat.java", "AudioTrack.java"},
+        )
+        self.assertTrue(any(value.endswith("/AndroidPcmOutput.java") for value in harness_sources))
+        self.assertTrue(
+            any(value.endswith("/AndroidPcmOutputTest.java") for value in harness_sources)
+        )
+        self.assertNotIn("-bootclasspath", compilers[0])
+        native_sources = [value for value in compilers[1] if value.endswith(".java")]
+        self.assertTrue(any(value.endswith("/AndroidPcmOutput.java") for value in native_sources))
+        self.assertFalse(any("/tests/" in value for value in native_sources))
+        self.assertIn("-bootclasspath", compilers[1])
+        self.assertNotIn("-cp", compilers[1])
+        self.assertNotEqual(
+            compilers[0][compilers[0].index("-d") + 1],
+            compilers[1][compilers[1].index("-d") + 1],
+        )
+
     def test_signed_manifest_hashes_compile_only_lambda_library(self) -> None:
         source = self.root / "source"
         source.mkdir()

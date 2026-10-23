@@ -448,9 +448,15 @@ def build(
             for path in (generated, classes, dex, harness):
                 path.mkdir()
             java = android / "src/main/java"
-            pure = [
+            tested_sources = [
                 java / "com/jikestardy/flovvy" / name
-                for name in ("SessionState.java", "HostAccess.java", "TextDraft.java")
+                for name in (
+                    "SessionState.java",
+                    "HostAccess.java",
+                    "TextDraft.java",
+                    "PcmOutput.java",
+                    "AndroidPcmOutput.java",
+                )
             ]
             invoke(
                 "javac",
@@ -464,11 +470,16 @@ def build(
                     "-proc:none",
                     "-d",
                     str(harness),
-                    *map(str, pure),
+                    *map(str, tested_sources),
+                    *map(str, sorted((android / "tests/platform").rglob("*.java"))),
                     str(android / "tests/SessionStateTest.java"),
+                    str(android / "tests/PcmOutputTest.java"),
+                    str(android / "tests/AndroidPcmOutputTest.java"),
                 ],
             )
             invoke("java", ["-cp", str(harness), PACKAGE + ".SessionStateTest"])
+            invoke("java", ["-cp", str(harness), PACKAGE + ".PcmOutputTest"])
+            invoke("java", ["-cp", str(harness), PACKAGE + ".AndroidPcmOutputTest"])
             invoke(
                 "aapt2",
                 ["compile", "--dir", str(android / "src/main/res"), "-o", str(work / "res.zip")],
