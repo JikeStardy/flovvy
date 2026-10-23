@@ -1,7 +1,4 @@
 {
-  "schema": 1,
-  "requirement": "REQ-20261022-4919F1",
-  "implementation_sha": "3e3d5c6cc452f79c16a7c73869ba40a357352a6a",
   "baseline_sha": "9b1bff756a22e7633ddf2a7d844f521ef78b25e1",
   "files": {
     ".github/workflows/android-apk.yml": "d322418f3f3902b09abfc97cdf364c9a37d8f0d9c3c5769c70a97b2ef8ce01c0",
@@ -13,7 +10,7 @@
     "clients/android/src/main/java/com/jikestardy/flovvy/HostAccess.java": "eaa366a4110d146c011548751808f97415460583aa48fa96008b5e1b78dafbcb",
     "clients/android/src/main/java/com/jikestardy/flovvy/HostClient.java": "d7c385d92e6dacdaeede1fe3fce90cdcbb34ba6c92325715a134d4f078f9dcb4",
     "clients/android/src/main/java/com/jikestardy/flovvy/MainActivity.java": "bc90299531cf0ad99bf119e37a69ca64d15557e5b663887e1a2865b42fb607db",
-    "clients/android/src/main/java/com/jikestardy/flovvy/PcmInput.java": "1d220681483261929f11b9ff81105bdff3fe5d082a3a32423af535c6d56ef50a",
+    "clients/android/src/main/java/com/jikestardy/flovvy/PcmInput.java": "f5f5ddca1d57453dbf6d7324aa118c76575e0e9a8418225d025ffc0fa14e0f5b",
     "clients/android/src/main/java/com/jikestardy/flovvy/PcmOutput.java": "4cff7211aeb3b267e701a05682f3bfb0e6ac83d52195c5db8292506be1c11615",
     "clients/android/src/main/java/com/jikestardy/flovvy/SessionState.java": "912fda8778707d0769df5f962f69a6f062bbfc793d27c01710520c08d94ed1e2",
     "clients/android/src/main/java/com/jikestardy/flovvy/TextDraft.java": "1552354f133a750ffcd5a306f02d5b04ae9e8a4ef4c5ed805b4d0b3a547f58d0",
@@ -35,5 +32,8 @@
     "clients/android/tests/test_build_tools.py": "5ee149ec1bfe1ace0acc6322b5741142a2ceca4cf55c05dcf34e2a1247b026cf",
     "clients/android/tools/build_apk.py": "457366435808ee171e1decaae296f4606f1e3fa4751e6d0d1c69ef88e9f7192c",
     "clients/android/tools/verify_projection.py": "f9b5badb23e527226d9e931ec35e6f7278d0ad258c8efa7a7f981a37bd9a9623"
-  }
+  },
+  "implementation_sha": "cb5a3b8f5eb9ccda693a552ece6171fdfced590b",
+  "requirement": "REQ-20261022-4919F1",
+  "schema": 1
 }

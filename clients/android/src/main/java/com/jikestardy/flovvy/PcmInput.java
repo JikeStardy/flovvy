@@ -226,12 +226,15 @@ public final class PcmInput implements AutoCloseable {
     private void failLocked(Lease lease, Throwable primary) {
         active.compareAndSet(lease, null); capturing.compareAndSet(lease, null);
         if (utteranceLease == lease) clearQueue();
-        if (ownerLease == lease) primary = combine(primary, cleanupLocked());
+        if (ownerLease == lease) primary = cleanupLocked(primary);
         rethrow(primary);
     }
     private Throwable cleanupLocked() {
-        if (owner == null) return null;
-        Source actual = owner; Throwable failure = null; boolean settled = false;
+        return cleanupLocked(null);
+    }
+    private Throwable cleanupLocked(Throwable failure) {
+        if (owner == null) return failure;
+        Source actual = owner; boolean settled = false;
         try { settled = actual.released(); } catch (Throwable error) { failure = combine(failure, error); }
         if (!settled) {
             try { actual.stop(); } catch (Throwable error) { failure = combine(failure, error); }
