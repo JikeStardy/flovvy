@@ -52,6 +52,13 @@ runner 必须已有 JDK17、API36 revision2、Build Tools36.0.0、Python3.12+。
 执行 Python 测试和纯 Java harness，再实际 aapt2→javac→d8→zipalign→apksigner，并核验
 最终包、SDK、仅 INTERNET 权限、签名证书与对齐。没有 Gradle、AndroidX 或第三方运行时。
 
+Android javac 保持 Java8 source/target，bootclasspath 依次使用 SDK 的 `android.jar` 和
+Build Tools 根目录已有的 `core-lambda-stubs.jar`；后者为编译 lambda 所需的符号存根。
+工具预检要求两个文件均存在，缺失时不启动任何工具。存根不进入应用 classes.jar、DEX
+或 APK；D8 的平台 `--lib` 仍只有 `android.jar`。签名 manifest 记录两个库各自的实际
+SHA256。此项修复真实 Actions39947017718 的 `LambdaMetafactory.metafactory` 缺失原因；
+是否解决编译仍须由新一次实际 Actions 结果验证。
+
 独立的 `--compile-only` 步骤不读取签名配置，使用同一条实际 Java harness、资源、Android
 编译、DEX 和对齐检查路径。它不调用签名器，不创建密钥，也不保留或上传 APK、hash 或
 交付 manifest。即使这个步骤通过，后续签名或验包缺配置/失败仍会使整个构建失败，不

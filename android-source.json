@@ -2,7 +2,7 @@
   "baseline_sha": "dbc035bf3b297d974270e9aa87096e73b24bceb3",
   "files": {
     ".github/workflows/android-apk.yml": "d322418f3f3902b09abfc97cdf364c9a37d8f0d9c3c5769c70a97b2ef8ce01c0",
-    "clients/android/README.md": "6ab7b73c9ca90b1ab9620cf6b05fa3f918b570e8a493d5a6a0e363f84ee09d94",
+    "clients/android/README.md": "ca31a34be6499af24d2b98d888064f4bbe410d4e11052a1865d52952d386f7d9",
     "clients/android/src/main/AndroidManifest.xml": "e235071d7648912708677b9b60bc6ea8e5545ea111d4e386530bb560542cc564",
     "clients/android/src/main/java/com/jikestardy/flovvy/CredentialStore.java": "9016e7733cdd75b1bc70a806a05d527148f00e1ea4c6adad3cbbb0f2e66b3d21",
     "clients/android/src/main/java/com/jikestardy/flovvy/HostAccess.java": "eaa366a4110d146c011548751808f97415460583aa48fa96008b5e1b78dafbcb",
@@ -13,11 +13,11 @@
     "clients/android/src/main/res/values/styles.xml": "8edc5019a54d6a3e5e25eddeca83e2c4b064e800467cdbb5b70682b7d1c8f61e",
     "clients/android/src/main/res/xml/data_extraction_rules.xml": "7a4e6defdcb7e21a8cdb4bb4cbdbbef15bcd4c6bae923372fbfa07f0642ac29a",
     "clients/android/tests/SessionStateTest.java": "03c70d9fdd43c107f025d32f3231b812bffa51a698ff4561659013c6e7494473",
-    "clients/android/tests/test_build_tools.py": "961f140d3713c9500143d87903186d45f8c66b81994b7095de4ae6db853015dc",
-    "clients/android/tools/build_apk.py": "db1af3a017ce31c9d225bb064254e1fa21df108c69be3441bc3ef9f0baf59733",
+    "clients/android/tests/test_build_tools.py": "99fb6cbf7cc379bf91f3e9711daf26295ec6ef335f0800650a6bdb69630bfcc5",
+    "clients/android/tools/build_apk.py": "f3db0a19f0bf816cf49ac475322c028f232a674d042d229217fc10be67c03ca1",
     "clients/android/tools/verify_projection.py": "f9b5badb23e527226d9e931ec35e6f7278d0ad258c8efa7a7f981a37bd9a9623"
   },
-  "implementation_sha": "3008c2e4cc2f326abf33ec2d00e152209070d757",
+  "implementation_sha": "d2856ff8a9d095b7f4095fb227845afb37f0ca97",
   "requirement": "REQ-20261022-4919F1",
   "schema": 1
 }

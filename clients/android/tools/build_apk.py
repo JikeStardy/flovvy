@@ -245,6 +245,7 @@ class Toolchain:
     sdk: Path
     jdk: Path
     android_jar: Path
+    lambda_stubs: Path
     commands: dict[str, Path]
     java_version: str
     properties: dict[str, str]
@@ -267,9 +268,11 @@ def toolchain(env: Mapping[str, str]) -> Toolchain:
         commands = {name: build_tools / name for name in ("aapt2", "d8", "zipalign", "apksigner")}
         commands.update({name: jdk / "bin" / name for name in ("java", "javac")})
         android_jar = platform / "android.jar"
+        lambda_stubs = build_tools / "core-lambda-stubs.jar"
         for path in [
             *commands.values(),
             android_jar,
+            lambda_stubs,
             build_tools / "lib/d8.jar",
             build_tools / "lib/apksigner.jar",
         ]:
@@ -288,6 +291,7 @@ def toolchain(env: Mapping[str, str]) -> Toolchain:
             sdk,
             jdk,
             android_jar,
+            lambda_stubs,
             commands,
             java_version.strip(),
             {
@@ -518,7 +522,7 @@ def build(
                     "-target",
                     "8",
                     "-bootclasspath",
-                    str(tools.android_jar),
+                    os.pathsep.join((str(tools.android_jar), str(tools.lambda_stubs))),
                     "-proc:none",
                     "-g:none",
                     "-d",
@@ -640,6 +644,7 @@ def build(
                 "tools_sha256": {name: _sha(path) for name, path in tools.commands.items()},
                 "libraries_sha256": {
                     "android.jar": _sha(tools.android_jar),
+                    "core-lambda-stubs.jar": _sha(tools.lambda_stubs),
                     "d8.jar": _sha(tools.sdk / "build-tools/36.0.0/lib/d8.jar"),
                     "apksigner.jar": _sha(tools.sdk / "build-tools/36.0.0/lib/apksigner.jar"),
                 },

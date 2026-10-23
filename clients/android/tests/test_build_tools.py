@@ -61,17 +61,26 @@ def fake_sdk(root: Path, mode: str) -> dict[str, str]:
     (tools / "source.properties").write_text("Pkg.Revision=36.0.0\n")
     for path in (platform / "android.jar", tools / "lib/d8.jar", tools / "lib/apksigner.jar"):
         path.write_bytes(b"test-only external tool library")
+    (tools / "core-lambda-stubs.jar").write_bytes(b"compile-only lambda fixture")
     script = f"""#!{sys.executable}
-import os, pathlib, shutil, sys, zipfile
+import json, os, pathlib, shutil, sys, zipfile
 tool = pathlib.Path(sys.argv[0]).name
 args = sys.argv[1:]
 mode = {mode!r}
+if mode == 'requires_lambda_stub':
+    with pathlib.Path({str(root / "sdk-commands.jsonl")!r}).open('a') as output:
+        output.write(json.dumps({{'tool': tool, 'args': args}}) + '\\n')
 def argument(name): return pathlib.Path(args[args.index(name) + 1])
 if tool == 'java':
     print('openjdk version "17.0.20"' if args == ['-version'] else 'fixture harness only')
 elif tool == 'javac':
     if args == ['-version']: print('javac 17.0.20')
     else:
+        if mode == 'requires_lambda_stub' and '-bootclasspath' in args:
+            boot = args[args.index('-bootclasspath') + 1].split(os.pathsep)
+            if len(boot) != 2 or [pathlib.Path(p).name for p in boot] != ['android.jar', 'core-lambda-stubs.jar'] or not all(pathlib.Path(p).is_file() for p in boot):
+                print('fixture missing lambda bootstrap method')
+                sys.exit(7)
         target = argument('-d') / 'Fixture.class'
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(b'fixture')
@@ -406,6 +415,83 @@ class BuilderTests(unittest.TestCase):
         jdk.mkdir()
         with self.assertRaisesRegex(ValueError, "TOOLCHAIN"):
             self.module.toolchain({"ANDROID_HOME": str(sdk), "JAVA_HOME_17_X64": str(jdk)})
+
+    def test_native_compile_uses_sdk_lambda_stubs_only_on_bootclasspath(self) -> None:
+        source = self.root / "source"
+        source.mkdir()
+        projection(source)
+        env = fake_sdk(self.root, "requires_lambda_stub")
+        for name in tuple(env):
+            if name.startswith("ANDROID_SIGNING_"):
+                del env[name]
+        output = self.root / "delivery"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                str(TOOLS / "build_apk.py"),
+                "--compile-only",
+                "--source-root",
+                str(source),
+                "--output",
+                str(output),
+                "--version-code",
+                "7",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = [
+            json.loads(line) for line in (self.root / "sdk-commands.jsonl").read_text().splitlines()
+        ]
+        compiled = [
+            call["args"]
+            for call in calls
+            if call["tool"] == "javac" and "-bootclasspath" in call["args"]
+        ]
+        self.assertEqual(len(compiled), 1)
+        boot = compiled[0][compiled[0].index("-bootclasspath") + 1].split(os.pathsep)
+        self.assertEqual(
+            boot,
+            [
+                str((self.root / "sdk/platforms/android-36/android.jar").resolve()),
+                str((self.root / "sdk/build-tools/36.0.0/core-lambda-stubs.jar").resolve()),
+            ],
+        )
+        dex = [call["args"] for call in calls if call["tool"] == "d8"]
+        self.assertEqual(len(dex), 1)
+        self.assertEqual(dex[0][dex[0].index("--lib") + 1], boot[0])
+        self.assertTrue(dex[0][-1].endswith("classes.jar"))
+        self.assertNotIn(boot[1], dex[0])
+        self.assertEqual(list(output.iterdir()), [])
+        self.assertEqual(list(self.root.glob("flovvy-build-*")), [])
+
+    def test_missing_sdk_lambda_stubs_fails_before_any_tool_starts(self) -> None:
+        env = fake_sdk(self.root, "requires_lambda_stub")
+        (self.root / "sdk/build-tools/36.0.0/core-lambda-stubs.jar").unlink()
+        with self.assertRaisesRegex(ValueError, "^TOOLCHAIN$"):
+            self.module.toolchain(env)
+        self.assertFalse((self.root / "sdk-commands.jsonl").exists())
+
+    def test_signed_manifest_hashes_compile_only_lambda_library(self) -> None:
+        source = self.root / "source"
+        source.mkdir()
+        projection(source)
+        env = fake_sdk(self.root, "ok")
+        output = self.root / "delivery"
+        with patch.dict(os.environ, env, clear=True):
+            result = self.module.build(source, output, 7)
+        libraries = result.get("libraries_sha256")
+        assert isinstance(libraries, dict)
+        self.assertEqual(
+            libraries.get("core-lambda-stubs.jar"),
+            hashlib.sha256(b"compile-only lambda fixture").hexdigest(),
+        )
+        self.assertNotIn(env["ANDROID_SIGNING_PASSWORD"], json.dumps(result))
+        self.assertEqual(list(self.root.glob("flovvy-build-*")), [])
 
     def test_fake_pipeline_only_proves_orchestration_and_manifest_redaction(self) -> None:
         source = self.root / "source"
