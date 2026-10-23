@@ -49,6 +49,16 @@ AudioTrack 在 play 前将实际启动阈值设为并核验为1帧，让合法�
 起播。每次写入和读取播放head前复检该值；不支持或输出设备变化导致阈值漂移时，显式
 失败并收尾原对象，不能等待到永久占用本段或自动重播。
 
+原生录音内部组件 `PcmInput` / `AndroidPcmInput` 也尚未连接 Activity/Host。它使用
+VOICE_COMMUNICATION 的非阻塞 short-array API，每次最多20ms，显式编码 PCM16LE；
+每200ms生成一个最多6,400字节的不可变包，正常结束保留非空尾包。未确认音频（含尾部）
+最多64,000字节，满后拒绝下一次读取并明确停止本句；不静默丢帧或自动重传。录音最多
+30秒单调时间且最多960,000字节，到界收尾原设备，确认排空后仍须显式结束本句。
+硬停止先失效身份再清理并丢弃未发音频；停止/正常结束发生后的迟到读取不能再提交。
+打开、开始和读前/读后复检权限、格式与原生缓冲；失败保留原设备及实际清理错误。
+没有新增后台线程或自动录音；运行时权限界面、Host-ready、路由/焦点、上传回执核对及
+10秒输入/2秒上传无进展处理仍由后续前台控制器接入。设备句柄及包均不构成授权。
+
 ## GitHub Actions 构建
 
 公开仓库 `JikeStardy/flovvy` 的 `dev` 只接收经过审查的 Android 文件投影，继承原远端
@@ -63,8 +73,9 @@ contents:read、15分钟、取消旧并发 run，工具缺失直接失败，不�
 runner 必须已有 JDK17、API36 revision2、Build Tools36.0.0、Python3.12+。依次核对投影、
 执行 Python 测试和纯 Java harness，再实际 aapt2→javac→d8→zipalign→apksigner，并核验
 最终包、SDK、仅 INTERNET 权限、签名证书与对齐。没有 Gradle、AndroidX 或第三方运行时。
-三个 JDK harness 分别验证会话、播放状态及实际适配器的阈值协议。最后一个只在独立测试
-classpath 使用第一方 `tests/platform` 行为夹具；它不代表真实 AudioTrack 或声学测量。
+五个 JDK harness 分别验证会话、播放状态、播放适配器阈值、录音状态与录音适配器。
+两个适配器 harness 只在独立测试 classpath 使用第一方 `tests/platform` 行为夹具；
+它们不代表真实 AudioTrack/AudioRecord 或声学测量。
 Android 编译只使用生产源码和真实 SDK bootclasspath；测试与夹具不进入应用 classes.jar、
 DEX 或 APK。
 
@@ -75,6 +86,7 @@ Build Tools 根目录已有的 `core-lambda-stubs.jar`；后者为编译 lambda 
 SHA256。此项修复真实 Actions39947017718 的 `LambdaMetafactory.metafactory` 缺失原因；
 后续实际 Actions39949757966已通过该基础版本编译，签名因缺配置失败，无APK附件。
 新增播放组件仍须在自己的冻结源码上重新运行真实Java/Android编译，不能沿用该结果。
+录音组件也须独立冻结和运行其真实编译/Java检查，不能沿用播放版本的通过。
 
 独立的 `--compile-only` 步骤不读取签名配置，使用同一条实际 Java harness、资源、Android
 编译、DEX 和对齐检查路径。它不调用签名器，不创建密钥，也不保留或上传 APK、hash 或

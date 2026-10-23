@@ -485,10 +485,19 @@ class BuilderTests(unittest.TestCase):
         assert isinstance(indexed, dict)
         for name in (
             "src/main/java/com/jikestardy/flovvy/AndroidPcmOutput.java",
+            "src/main/java/com/jikestardy/flovvy/PcmInput.java",
+            "src/main/java/com/jikestardy/flovvy/AndroidPcmInput.java",
             "tests/AndroidPcmOutputTest.java",
+            "tests/PcmInputTest.java",
+            "tests/AndroidPcmInputTest.java",
             "tests/platform/android/media/AudioAttributes.java",
             "tests/platform/android/media/AudioFormat.java",
             "tests/platform/android/media/AudioTrack.java",
+            "tests/platform/android/Manifest.java",
+            "tests/platform/android/content/Context.java",
+            "tests/platform/android/content/pm/PackageManager.java",
+            "tests/platform/android/media/AudioRecord.java",
+            "tests/platform/android/media/MediaRecorder.java",
         ):
             relative = "clients/android/" + name
             target = source / relative
@@ -517,6 +526,8 @@ class BuilderTests(unittest.TestCase):
                 "com.jikestardy.flovvy.SessionStateTest",
                 "com.jikestardy.flovvy.PcmOutputTest",
                 "com.jikestardy.flovvy.AndroidPcmOutputTest",
+                "com.jikestardy.flovvy.PcmInputTest",
+                "com.jikestardy.flovvy.AndroidPcmInputTest",
             ],
         )
         first_android = next(index for index, call in enumerate(calls) if call["tool"] == "aapt2")
@@ -529,15 +540,32 @@ class BuilderTests(unittest.TestCase):
         fixtures = [value for value in harness_sources if "/tests/platform/" in value]
         self.assertEqual(
             {Path(value).name for value in fixtures},
-            {"AudioAttributes.java", "AudioFormat.java", "AudioTrack.java"},
+            {
+                "AudioAttributes.java",
+                "AudioFormat.java",
+                "AudioTrack.java",
+                "AudioRecord.java",
+                "MediaRecorder.java",
+                "Manifest.java",
+                "Context.java",
+                "PackageManager.java",
+            },
         )
         self.assertTrue(any(value.endswith("/AndroidPcmOutput.java") for value in harness_sources))
         self.assertTrue(
             any(value.endswith("/AndroidPcmOutputTest.java") for value in harness_sources)
         )
         self.assertNotIn("-bootclasspath", compilers[0])
+        for name in (
+            "PcmInput.java",
+            "AndroidPcmInput.java",
+            "PcmInputTest.java",
+            "AndroidPcmInputTest.java",
+        ):
+            self.assertTrue(any(value.endswith("/" + name) for value in harness_sources))
         native_sources = [value for value in compilers[1] if value.endswith(".java")]
         self.assertTrue(any(value.endswith("/AndroidPcmOutput.java") for value in native_sources))
+        self.assertTrue(any(value.endswith("/AndroidPcmInput.java") for value in native_sources))
         self.assertFalse(any("/tests/" in value for value in native_sources))
         self.assertIn("-bootclasspath", compilers[1])
         self.assertNotIn("-cp", compilers[1])

@@ -456,6 +456,8 @@ def build(
                     "TextDraft.java",
                     "PcmOutput.java",
                     "AndroidPcmOutput.java",
+                    "PcmInput.java",
+                    "AndroidPcmInput.java",
                 )
             ]
             invoke(
@@ -475,11 +477,15 @@ def build(
                     str(android / "tests/SessionStateTest.java"),
                     str(android / "tests/PcmOutputTest.java"),
                     str(android / "tests/AndroidPcmOutputTest.java"),
+                    str(android / "tests/PcmInputTest.java"),
+                    str(android / "tests/AndroidPcmInputTest.java"),
                 ],
             )
             invoke("java", ["-cp", str(harness), PACKAGE + ".SessionStateTest"])
             invoke("java", ["-cp", str(harness), PACKAGE + ".PcmOutputTest"])
             invoke("java", ["-cp", str(harness), PACKAGE + ".AndroidPcmOutputTest"])
+            invoke("java", ["-cp", str(harness), PACKAGE + ".PcmInputTest"])
+            invoke("java", ["-cp", str(harness), PACKAGE + ".AndroidPcmInputTest"])
             invoke(
                 "aapt2",
                 ["compile", "--dir", str(android / "src/main/res"), "-o", str(work / "res.zip")],
