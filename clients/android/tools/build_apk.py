@@ -157,8 +157,16 @@ def _capture_output(process: subprocess.Popen[bytes], capture: BinaryIO) -> str:
         raise ValueError("TOOL_OUTPUT_FORMAT") from None
 
 
-def run_tool(command: list[str], cwd: Path, env: Mapping[str, str]) -> str:
-    """No shell, bounded execution/output, no compiler/provider secret diagnostics."""
+def run_tool(
+    command: list[str], cwd: Path, env: Mapping[str, str], *, public_compiler: bool = False
+) -> str:
+    """Bounded tools; optional public compiler diagnostics cannot admit secret context."""
+    if public_compiler and (
+        not command
+        or Path(command[0]).name not in {"java", "javac", "aapt2", "d8", "zipalign"}
+        or set(env) - {"JAVA_HOME", "PATH"}
+    ):
+        raise ValueError("DIAGNOSTICS_CONTEXT")
     with tempfile.TemporaryFile() as capture:
         try:
             process = subprocess.Popen(
@@ -190,6 +198,21 @@ def run_tool(command: list[str], cwd: Path, env: Mapping[str, str]) -> str:
                     raise BaseExceptionGroup("TOOL_CLEANUP_PENDING", [primary, cleanup]) from None
                 raise
             if primary is not None:
+                if (
+                    public_compiler
+                    and isinstance(primary, ValueError)
+                    and str(primary) == "TOOL_FAILED"
+                ):
+                    # Legacy runner commands can start inside a line. Remove all
+                    # command delimiter characters before applying the output bound.
+                    capture.seek(0)
+                    text = capture.read(TOOL_OUTPUT_BYTES).decode("utf-8", errors="replace")
+                    escaped = (
+                        json.dumps(text, ensure_ascii=True)
+                        .replace("#", "\\u0023")
+                        .replace(":", "\\u003a")
+                    )
+                    print("Android public compiler diagnostic: " + escaped[:16_384], flush=True)
                 raise primary
             return result
         finally:
@@ -373,12 +396,21 @@ def _verify_apk(
         raise ValueError("APK_VERIFICATION")
 
 
-def build(root: Path, output: Path, code: int, *, compile_only: bool = False) -> dict[str, object]:
+def build(
+    root: Path,
+    output: Path,
+    code: int,
+    *,
+    compile_only: bool = False,
+    public_compiler_diagnostics: bool = False,
+) -> dict[str, object]:
     if type(code) is not int or version_code(str(code)) != code:
         raise ValueError("VERSION_CODE")
     output = _output_path(output, os.environ)
     _clear_outputs(output)
     try:
+        if public_compiler_diagnostics and not compile_only:
+            raise ValueError("DIAGNOSTICS_MODE")
         provenance = verify(root)
         key, password, certificate = (b"", "", "") if compile_only else signing_inputs(os.environ)
         tools = toolchain(os.environ)
@@ -402,6 +434,8 @@ def build(root: Path, output: Path, code: int, *, compile_only: bool = False) ->
                 commands.append(command)
                 print("Android build stage: " + name, flush=True)
                 child = {**env, "ANDROID_SIGNING_PASSWORD": password} if secret else env
+                if public_compiler_diagnostics:
+                    return run_tool(command, work, child, public_compiler=True)
                 return run_tool(command, work, child)
 
             generated, classes, dex, harness = (
@@ -646,6 +680,11 @@ def main() -> int:
     parser.add_argument(
         "--compile-only", action="store_true", help="Verify compilation without signing or delivery"
     )
+    parser.add_argument(
+        "--public-compiler-diagnostics",
+        action="store_true",
+        help="Allow bounded escaped public tool errors; requires --compile-only",
+    )
     args = parser.parse_args()
     if sys.version_info < (3, 12):  # noqa: UP036 - standalone CI script must check the actual interpreter.
         print("PYTHON_VERSION: requires Python 3.12+")
@@ -656,6 +695,7 @@ def main() -> int:
             args.output,
             args.version_code,
             compile_only=args.compile_only,
+            public_compiler_diagnostics=args.public_compiler_diagnostics,
         )
     except ValueError as error:
         category = str(error)

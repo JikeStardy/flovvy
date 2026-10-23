@@ -89,6 +89,10 @@ elif tool == 'd8':
     if mode == 'compile_failure':
         print('COMPILE_PRIVATE_CANARY')
         sys.exit(7)
+    if mode == 'public_diagnostic_failure':
+        print('::error::public compiler fixture ##[error]legacy' + chr(27) + '[31m' + chr(13) + 'line')
+        print('##[error]::error::' * 2000)
+        sys.exit(7)
     (argument('--output') / 'classes.dex').write_bytes(b'dex\\n035\\0fixture')
 elif tool == 'zipalign':
     if '-c' not in args: shutil.copyfile(args[-2], args[-1])
@@ -494,6 +498,93 @@ class BuilderTests(unittest.TestCase):
         self.assertNotIn("COMPILE_PRIVATE_CANARY", result.stdout + result.stderr)
         self.assertNotIn("Compilation verified", result.stdout)
         self.assertNotIn("Android build stage: apksigner", result.stdout)
+        self.assertEqual(list(output.iterdir()), [])
+        self.assertEqual(list(self.root.glob("flovvy-build-*")), [])
+
+    def test_explicit_public_compiler_diagnostics_are_bounded_and_escaped(self) -> None:
+        source = self.root / "source"
+        source.mkdir()
+        projection(source)
+        env = fake_sdk(self.root, "public_diagnostic_failure")
+        for name in tuple(env):
+            if name.startswith("ANDROID_SIGNING_"):
+                del env[name]
+        output = self.root / "delivery"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                str(TOOLS / "build_apk.py"),
+                "--compile-only",
+                "--public-compiler-diagnostics",
+                "--source-root",
+                str(source),
+                "--output",
+                str(output),
+                "--version-code",
+                "7",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("TOOL_FAILED", result.stdout)
+        diagnostic = [
+            line
+            for line in result.stdout.splitlines()
+            if line.startswith("Android public compiler diagnostic: ")
+        ]
+        self.assertEqual(len(diagnostic), 1, result.stdout)
+        self.assertIn("public compiler fixture", diagnostic[0])
+        self.assertNotIn("##[", result.stdout)
+        self.assertNotIn("::", result.stdout)
+        self.assertIn("\\u0023\\u0023[error]", diagnostic[0])
+        self.assertIn("\\u003a\\u003aerror\\u003a\\u003a", diagnostic[0])
+        self.assertIn("\\u001b", diagnostic[0])
+        self.assertIn("\\r", diagnostic[0])
+        self.assertNotIn(chr(27), result.stdout)
+        self.assertFalse(any(line.startswith("::") for line in result.stdout.splitlines()))
+        self.assertLessEqual(len(diagnostic[0]), 16421)
+        self.assertLess(len(result.stdout), 17000)
+        self.assertNotIn("Android build stage: apksigner", result.stdout)
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(list(output.iterdir()), [])
+        self.assertEqual(list(self.root.glob("flovvy-build-*")), [])
+
+    def test_public_compiler_diagnostics_cannot_enable_signing_logs(self) -> None:
+        source = self.root / "source"
+        source.mkdir()
+        projection(source)
+        env = fake_sdk(self.root, "sign_failure")
+        output = self.root / "delivery"
+        output.mkdir()
+        for name in self.module.DELIVERABLES:
+            (output / name).write_text("stale")
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                str(TOOLS / "build_apk.py"),
+                "--public-compiler-diagnostics",
+                "--source-root",
+                str(source),
+                "--output",
+                str(output),
+                "--version-code",
+                "7",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("DIAGNOSTICS_MODE", result.stdout)
+        self.assertNotIn("Android build stage:", result.stdout)
+        self.assertNotIn("Android public compiler diagnostic:", result.stdout)
+        self.assertNotIn(env["ANDROID_SIGNING_PASSWORD"], result.stdout + result.stderr)
         self.assertEqual(list(output.iterdir()), [])
         self.assertEqual(list(self.root.glob("flovvy-build-*")), [])
 
